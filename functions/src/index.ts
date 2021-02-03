@@ -4,7 +4,6 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as express from "express";
 import * as bodyParser from "body-parser";
-import * as uuid from "uuid";
 
 // initialize firebase to access firestore services
 admin.initializeApp(functions.config().firebase);
@@ -13,13 +12,12 @@ admin.initializeApp(functions.config().firebase);
 const app = express();
 const main = express();
 
-// initialize DB and name of user collection in firestore
-const db = admin.firestore();
-const userCollection = "users";
+// initialize Firestore DB
+// const db = admin.firestore();
 
 const logger = functions.logger;
 
-// add path and middleware for handling requests
+// add path and middleware for handling CRUD requests
 main.use("/api/v1", app);
 
 // parse message body when request is handled
@@ -48,6 +46,7 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
   try {
     const decodedIdToken = await admin.auth().verifyIdToken(idToken);
     logger.log("ID token correctly decoded: ", decodedIdToken);
+    // make user information available in the request to identify who is making the request
     req.user = decodedIdToken;
     next();
   } catch (error) {
@@ -60,53 +59,24 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
 // thus all HTTPS endpoints can only be accessed by Firebase users
 app.use(validateFirebaseIdToken);
 
-// users collection model
-interface User {
-  firstName: String,
-  lastName:String,
-  email: String,
-  id: String
-}
-
-// create new user
-// POST /users
-app.post("/users", async (req, res) => {
-  try {
-    const user: User = {
-      firstName: req.body["firstName"],
-      lastName: req.body["lastName"],
-      email: req.body["email"],
-      id: uuid.v4(),
-    };
-
-    const newDoc = await db.collection(userCollection).add(user);
-    res.status(201).send("Created a new user: " + newDoc.id);
-  } catch (error) {
-    logger.log("POST /users " + error);
-    res.status(400).send("User should cointain firstName, lastName, email.");
-  }
-});
-
-// get all users
+// get information about current user
 // GET /users
-app.get("/users", async (req, res) => {
-  logger.log("Fetching all users from Firestore");
-  try {
-    const userQuerySnapshot = await db.collection(userCollection).get();
-    const users: any[] = [];
-    userQuerySnapshot.forEach(
-        (doc) => {
-          users.push({
-            id: doc.id,
-            data: doc.data(),
-          });
-        }
-    );
-    res.status(200).json(users);
-  } catch (error) {
-    logger.log("GET /users " + error);
-    res.status(500).send(error);
-  }
+app.get("/users/me", async (req: any, res) => {
+  logger.log("Fetching information for user ", req.user.uid);
+  admin.auth().getUser(req.user.uid)
+    .then((userRecord) => {
+      logger.log("Successfully fetched user data for user ", userRecord.uid);
+      const respData = {
+        uid: userRecord.uid,
+        displayName: userRecord.displayName,
+        email: userRecord.email
+      }
+      res.status(200).json(respData);
+    })
+    .catch((error) => {
+      logger.error("Error fetching user data: ", error);
+      res.status(500).send(error);
+    });
 });
 
 // creation function for API, assign express server to handle HTTPS requests
