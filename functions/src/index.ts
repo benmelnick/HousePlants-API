@@ -13,7 +13,8 @@ const app = express();
 const main = express();
 
 // initialize Firestore DB
-// const db = admin.firestore();
+const db = admin.firestore();
+const plantCollection = "plants";
 
 const logger = functions.logger;
 
@@ -35,7 +36,11 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
     logger.error("No Firebase ID token was passed as a Bearer token in the Authorization header.",
       "Make sure you authorize your request by providing the following HTTP header:",
       "Authorization: Bearer <Firebase ID Token>");
-    res.status(403).send("Unauthorized");
+    res.status(401).json({
+      status: 401,
+      data: null,
+      message: "Unauthorized"
+    });
     return;
   }
 
@@ -51,7 +56,11 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
     next();
   } catch (error) {
     console.error("Error while verifying Firebase ID token: ", error);
-    res.status(403).send("Unauthorized");
+    res.status(401).json({
+      status: 401,
+      data: null,
+      message: "Unauthorized"
+    });
   }
 };
 
@@ -71,12 +80,241 @@ app.get("/users/me", async (req: any, res) => {
         displayName: userRecord.displayName,
         email: userRecord.email
       }
-      res.status(200).json(respData);
+      res.status(200).json({
+        status: 200,
+        data: respData
+      });
     })
     .catch((error) => {
       logger.error("Error fetching user data: ", error);
-      res.status(500).send(error);
+      res.status(500).json({
+        status: 500,
+        data: null, 
+        message: error
+      });
     });
+});
+
+// Plant collection model
+interface Plant {
+  uid: String,           // uid of plant's owner
+  name: String,          // custom, user-defined name for the plant
+  waterAt: Date,         // time of day to water the plant
+  treflePlantId: Number  // ID for plant data in Trefle API
+}
+
+// makes sure that each property is present in the request body
+const validateRequestBody = (req: any) => {
+  if (req.body["name"] == undefined || req.body["waterAt"] == undefined || 
+      req.body["treflePlantId"] == undefined) {
+    return false;
+  }
+  return true;
+}
+
+// creates a new Plant object in the collection
+app.post("/plants", async (req: any, res) => {
+  const uid = req.user.uid;
+  logger.log("Adding new plant for user ", uid);
+
+  // parse request body
+  if (!validateRequestBody(req)) {
+    logger.error("Unable to parse request body, one or properties improperly formatted");
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Unable to parse request body, one or properties improperly formatted"
+    });
+    return;
+  }
+
+  const newPlant: Plant = {
+    uid: req.user.uid,  // new plant belongs to user making the request
+    name: req.body["name"],
+    waterAt: req.body["waterAt"],
+    treflePlantId: req.body["treflePlantId"]
+  }
+
+  try {
+    // check if the user already has the plant
+    // plant names for a particular user must be unique
+    const plantsQuerySnapshot = await db.collection(plantCollection)
+      .where("uid", "==", uid).where("name", "==", req.body["name"]).get();
+    if (!plantsQuerySnapshot.empty) {
+      logger.error("Plant " + req.body["name"] + " already exists for user ", uid);
+      res.status(409).json({
+        status: 409,
+        data: null,
+        message: "Duplicate entry"
+      });
+      return;
+    }
+
+    // use await to suspend execution until add() completes
+    const newDoc = await db.collection(plantCollection).add(newPlant);
+    logger.log("Successfully created new plant ", newDoc.id);
+    res.status(201).json({
+      status: 201,
+      data: {
+        id: newDoc.id
+      }
+    });
+  } catch (error) {
+    // server error trying to write to Firestore
+    logger.error("Unable to create new plant: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// fetch the requesting user's plants
+app.get("/plants", async (req: any, res) => {
+  const uid = req.user.uid;
+  logger.log("Fetching plants for user ", uid);
+  try {
+    // query plant collections by uid
+    const plantsQuerySnapshot = await db.collection(plantCollection)
+      .where("uid", "==", uid).get();
+    
+    const plants: any[] = [];
+    let numPlants = 0;
+    plantsQuerySnapshot.forEach(
+      (doc) => {
+        numPlants++;
+        plants.push({
+          id: doc.id,
+          data: doc.data()
+        });
+      }
+    );
+
+    logger.log("Successfully fetched " + numPlants + " plants for user ", uid);
+    res.status(200).json({
+      status: 200,
+      data: plants
+    });
+  } catch (error) {
+    logger.error("Unable to fetch plants for user ", uid);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// deletes a specific plant given its ID
+app.delete("/plants/:plantId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const plantId = req.params.plantId;
+  logger.log("Received request to delete plant ", plantId);
+
+  try {
+    // check to see if requesting user owns the plant 
+    const plant = await db.collection(plantCollection).doc(plantId).get();
+    if (!plant.exists) {
+      logger.log("Plant " + plantId + " no longer exists");
+      res.status(204).json({
+        status: 204,
+        data: null
+      });
+    } else {
+      if (plant.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have delete permission for plant ", plantId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the deletion
+        await db.collection(plantCollection).doc(plantId).delete();
+        logger.log("Successfully deleted plant ", plantId);
+        res.status(204).json({
+          status: 204,
+          data: null
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to delete plant: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// updates information for a specific plant
+app.put("/plants/:plantId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const plantId = req.params.plantId;
+  logger.log("Received request to update plant ", plantId);
+
+  // parse request body
+  if (!validateRequestBody(req)) {
+    logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Unable to parse request body, one or properties improperly formatted: " + req.body
+    });
+    return;
+  }
+
+  const plantReq: Plant = {
+    uid: req.user.uid,  // new plant belongs to user making the request
+    name: req.body["name"],
+    waterAt: req.body["waterAt"],
+    treflePlantId: req.body["treflePlantId"]
+  }
+
+  try {
+    // check to see if requesting user owns the plant 
+    const plant = await db.collection(plantCollection).doc(plantId).get();
+    if (!plant.exists) {
+      // plant does not exist - return 404
+      // do not create the resource since we rely on Firebase for generating IDs
+      logger.error("Plant " + plantId + " does not exist");
+      res.status(404).json({
+        status: 404,
+        data: null,
+        message: "Plant with id " + plantId + " does not exist"
+      });
+    } else {
+      if (plant.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have update permission for plant ", plantId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the update
+        await db.collection(plantCollection).doc(plantId).set(plantReq, {merge: true});
+        logger.log("Successfully updated plant ", plantId);
+        res.status(200).json({
+          status: 200,
+          data: {
+            id: plantId
+          }
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to update plant: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
 });
 
 // creation function for API, assign express server to handle HTTPS requests
