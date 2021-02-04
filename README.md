@@ -144,9 +144,9 @@ Request body:
 
 - `500`: Server error; could not reach Firebase.
 
-## Testing
+## Usage
 
-To test, start by performing the following request with the corresoponding request body to sign up for the app:
+To use the API in your applications, start by signing up for the app. This can be done through the Firebase Auth API for your platform (iOS, Android, Node, etc). For example, to sign up through the REST API:
 
 ```http
 https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=[API_KEY]
@@ -172,10 +172,12 @@ Response body:
 }
 ```
 
+For other APIs, see: [https://firebase.google.com/docs/reference/rest/auth/#section-sign-in-email-password](https://firebase.google.com/docs/reference/rest/auth/#section-sign-in-email-password)
+
 You will need to use the provided `idToken` in the `Authorization` request header in order to reach protected endpoints and access your new account's data. Eventually, the token will expire, in which you case you can generate a new token at the sign-in endpoint (with the same request body): 
 
 ```http
 https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[API_KEY]
 ```
 
-For more info, see: https://firebase.google.com/docs/reference/rest/auth/#section-sign-in-email-password
+
