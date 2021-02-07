@@ -45,7 +45,7 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
   }
 
   // validate the token passed in and see if it corresponds to an actual user
-  logger.log("Found 'Authorization' header");
+  logger.log("Found 'Authorization' header: ", req.headers.authorization);
   let idToken = req.headers.authorization.split("Bearer ")[1];
 
   try {
@@ -55,7 +55,7 @@ const validateFirebaseIdToken = async (req: any, res: any, next: any) => {
     req.user = decodedIdToken;
     next();
   } catch (error) {
-    console.error("Error while verifying Firebase ID token: ", error);
+    logger.error("Error while verifying Firebase ID token: ", error);
     res.status(401).json({
       status: 401,
       data: null,
