@@ -3,7 +3,7 @@
 This repository contains a simple CRUD API for interacting with user information stored in Google Firebase's [Cloud Firestore](https://cloud.google.com/firestore). The API is written in TypeScript and built using [ExpressJS](https://expressjs.com/) and deployed to [Firebase Functions](https://firebase.google.com/docs/functions) triggered by HTTPS requests to the following base API endpoint:
 
 ```http
-https://us-central1-house-plants-api.cloudfunctions.net/webApi/api/v1
+https://us-central1-seedling-prod.cloudfunctions.net/webApi/api/v1
 ```
 
 This API was built to act as a back-end for a simple mobile application for Georgia Tech's CS 4261: Mobile Applications & Services. The application integrates with a 3rd party API, [Trefle](https://docs.trefle.io/), for retrieving plant-specific information to be displayed in the app's UI.
@@ -179,5 +179,3 @@ You will need to use the provided `idToken` in the `Authorization` request heade
 ```http
 https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=[API_KEY]
 ```
-
-
