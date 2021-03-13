@@ -15,6 +15,7 @@ const main = express();
 // initialize Firestore DB
 const db = admin.firestore();
 const plantCollection = "plants";
+const roomCollection = "rooms";
 
 const logger = functions.logger;
 
@@ -95,18 +96,10 @@ app.get("/users/me", async (req: any, res) => {
     });
 });
 
-// Plant collection model
-interface Plant {
-  uid: String,           // uid of plant's owner
-  name: String,          // custom, user-defined name for the plant
-  waterAt: Date,         // time of day to water the plant
-  treflePlantId: Number  // ID for plant data in Trefle API
-}
-
 // makes sure that each property is present in the request body
-const validateRequestBody = (req: any) => {
+const validatePlantRequestBody = (req: any) => {
   if (req.body["name"] == undefined || req.body["waterAt"] == undefined || 
-      req.body["treflePlantId"] == undefined) {
+      req.body["roomId"] == undefined || req.body["treflePlantId"] == undefined) {
     return false;
   }
   return true;
@@ -118,7 +111,7 @@ app.post("/plants", async (req: any, res) => {
   logger.log("Adding new plant for user ", uid);
 
   // parse request body
-  if (!validateRequestBody(req)) {
+  if (!validatePlantRequestBody(req)) {
     logger.error("Unable to parse request body, one or properties improperly formatted");
     res.status(400).json({
       status: 400,
@@ -132,6 +125,7 @@ app.post("/plants", async (req: any, res) => {
     uid: req.user.uid,  // new plant belongs to user making the request
     name: req.body["name"],
     waterAt: req.body["waterAt"],
+    roomId: req.body["roomId"],
     treflePlantId: req.body["treflePlantId"]
   }
 
@@ -257,7 +251,7 @@ app.put("/plants/:plantId", async (req: any, res) => {
   logger.log("Received request to update plant ", plantId);
 
   // parse request body
-  if (!validateRequestBody(req)) {
+  if (!validatePlantRequestBody(req)) {
     logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
     res.status(400).json({
       status: 400,
@@ -271,6 +265,7 @@ app.put("/plants/:plantId", async (req: any, res) => {
     uid: req.user.uid,  // new plant belongs to user making the request
     name: req.body["name"],
     waterAt: req.body["waterAt"],
+    roomId: req.body["roomId"],
     treflePlantId: req.body["treflePlantId"]
   }
 
@@ -317,7 +312,210 @@ app.put("/plants/:plantId", async (req: any, res) => {
   }
 });
 
+/* Rooms API */
+app.post("/rooms", async (req: any, res) => {
+  const uid = req.user.uid;
+  logger.log("Adding new room for user ", uid);
+
+  // parse request body
+  if (req.body["name"] == undefined) {
+    logger.error("Unable to parse request body, one or properties improperly formatted");
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Unable to parse request body, one or properties improperly formatted"
+    });
+    return;
+  }
+
+  const newRoom: Room = {
+    uid: req.user.uid,  // new room belongs to user making the request
+    name: req.body["name"],
+    updatedAt: new Date().toISOString()
+  }
+
+  try {
+    // check if the user already has the room
+    // room names for a particular user must be unique
+    const roomsQuerySnapshot = await db.collection(roomCollection)
+      .where("uid", "==", uid).where("name", "==", req.body["name"]).get();
+    if (!roomsQuerySnapshot.empty) {
+      logger.error("Room " + req.body["name"] + " already exists for user ", uid);
+      res.status(409).json({
+        status: 409,
+        data: null,
+        message: "Duplicate entry"
+      });
+      return;
+    }
+
+    // use await to suspend execution until add() completes
+    const newDoc = await db.collection(roomCollection).add(newRoom);
+    logger.log("Successfully created new room ", newDoc.id);
+    res.status(201).json({
+      status: 201,
+      data: {
+        id: newDoc.id
+      }
+    });
+  } catch (error) {
+    // server error trying to write to Firestore
+    logger.error("Unable to create new room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// fetch the requesting user's rooms
+app.get("/rooms", async (req: any, res) => {
+  const uid = req.user.uid;
+  logger.log("Fetching rooms for user ", uid);
+  try {
+    // query plant collections by uid
+    const roomsQuerySnapshot = await db.collection(roomCollection)
+      .where("uid", "==", uid).get();
+    
+    const rooms: any[] = [];
+    let numRooms = 0;
+    roomsQuerySnapshot.forEach(
+      (doc) => {
+        numRooms++;
+        rooms.push({
+          id: doc.id,
+          data: doc.data()
+        });
+      }
+    );
+
+    logger.log("Successfully fetched " + numRooms + " rooms for user ", uid);
+    res.status(200).json({
+      status: 200,
+      data: rooms
+    });
+  } catch (error) {
+    logger.error("Unable to fetch rooms for user ", uid);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// deletes a specific room given its ID
+app.delete("/rooms/:roomId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const roomId = req.params.roomId;
+  logger.log("Received request to delete room ", roomId);
+
+  try {
+    // check to see if requesting user owns the plant 
+    const room = await db.collection(roomCollection).doc(roomId).get();
+    if (!room.exists) {
+      logger.log("Room " + roomId + " no longer exists");
+      res.status(204).json({
+        status: 204,
+        data: null
+      });
+    } else {
+      if (room.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have delete permission for room ", roomId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the deletion
+        await db.collection(roomCollection).doc(roomId).delete();
+        logger.log("Successfully deleted room ", roomId);
+        res.status(204).json({
+          status: 204,
+          data: null
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to delete room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// updates information for a specific plant
+app.put("/rooms/:roomId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const roomId = req.params.roomId;
+  logger.log("Received request to update room ", roomId);
+
+  // parse request body
+  if (req.body["name"] == undefined) {
+    logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Unable to parse request body, one or properties improperly formatted: " + req.body
+    });
+    return;
+  }
+
+  const roomReq: Room = {
+    uid: req.user.uid,  // new plant belongs to user making the request
+    name: req.body["name"],
+    updatedAt: new Date().toISOString()
+  }
+
+  try {
+    // check to see if requesting user owns the plant 
+    const room = await db.collection(roomCollection).doc(roomId).get();
+    if (!room.exists) {
+      // plant does not exist - return 404
+      // do not create the resource since we rely on Firebase for generating IDs
+      logger.error("Room " + roomId + " does not exist");
+      res.status(404).json({
+        status: 404,
+        data: null,
+        message: "Room with id " + roomId + " does not exist"
+      });
+    } else {
+      if (room.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have update permission for room ", roomId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the update
+        await db.collection(roomCollection).doc(roomId).set(roomReq, {merge: true});
+        logger.log("Successfully updated room ", roomId);
+        res.status(200).json({
+          status: 200,
+          data: {
+            id: roomId
+          }
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to update room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
 // creation function for API, assign express server to handle HTTPS requests
 // makes CRUD API in app available at:
-//  'https://<region>-house-plants-api.cloudfunctions.net/webApi
+//  'https://<region>-<project-name>.cloudfunctions.net/webApi
 export const webApi = functions.https.onRequest(main);

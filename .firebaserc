@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "house-plants-api"
+    "default": "house-plants-api",
+    "prod": "seedling-prod"
   }
 }
