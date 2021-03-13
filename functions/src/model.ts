@@ -14,5 +14,5 @@ interface Plant {
 interface Room {
   uid: String,           // uid of room's owner
   name: String,          // custom, user-defined name for the plant
-  createdAt: String      // timestamp for when the room was created
+  updatedAt: String      // timestamp for when the room was most recently updated
 }

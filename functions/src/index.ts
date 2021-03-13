@@ -329,7 +329,7 @@ app.post("/rooms", async (req: any, res) => {
   const newRoom: Room = {
     uid: req.user.uid,  // new room belongs to user making the request
     name: req.body["name"],
-    createdAt: new Date().toLocaleString()
+    updatedAt: new Date().toLocaleString()
   }
 
   try {
@@ -439,6 +439,72 @@ app.delete("/rooms/:roomId", async (req: any, res) => {
     }
   } catch (error) {
     logger.error("Unable to delete room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// updates information for a specific plant
+app.put("/rooms/:roomId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const roomId = req.params.roomId;
+  logger.log("Received request to update room ", roomId);
+
+  // parse request body
+  if (req.body["name"] == undefined) {
+    logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Unable to parse request body, one or properties improperly formatted: " + req.body
+    });
+    return;
+  }
+
+  const roomReq: Room = {
+    uid: req.user.uid,  // new plant belongs to user making the request
+    name: req.body["name"],
+    updatedAt: new Date().toLocaleString()
+  }
+
+  try {
+    // check to see if requesting user owns the plant 
+    const room = await db.collection(roomCollection).doc(roomId).get();
+    if (!room.exists) {
+      // plant does not exist - return 404
+      // do not create the resource since we rely on Firebase for generating IDs
+      logger.error("Room " + roomId + " does not exist");
+      res.status(404).json({
+        status: 404,
+        data: null,
+        message: "Room with id " + roomId + " does not exist"
+      });
+    } else {
+      if (room.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have update permission for room ", roomId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the update
+        await db.collection(roomCollection).doc(roomId).set(roomReq, {merge: true});
+        logger.log("Successfully updated room ", roomId);
+        res.status(200).json({
+          status: 200,
+          data: {
+            id: roomId
+          }
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to update room: ", error);
     res.status(500).json({
       status: 500,
       data: null,
