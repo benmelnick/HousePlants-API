@@ -7,6 +7,7 @@ interface Plant {
   uid: String,           // uid of plant's owner
   name: String,          // custom, user-defined name for the plant
   waterAt: Date,         // time of day to water the plant
+  roomId: String,        // ID of the room the plant belongs to
   treflePlantId: Number  // ID for plant data in Trefle API
 }
 

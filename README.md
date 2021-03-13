@@ -8,18 +8,7 @@ https://us-central1-seedling-prod.cloudfunctions.net/webApi/api/v1
 
 This API was built to act as a back-end for a simple mobile application for Georgia Tech's CS 4261: Mobile Applications & Services. The application integrates with a 3rd party API, [Trefle](https://docs.trefle.io/), for retrieving plant-specific information to be displayed in the app's UI.
 
-## Data Model
-
-Stored plant data contains the following fields:
-
-| **Name**      | **Type** | **Description**                                                              |
-| ------------- | -------- | ---------------------------------------------------------------------------- |
-| name          | `string` | A user-defined name to identify a plant in the user's collection             |
-| uid           | `string` | Firebase generated user ID to identify the owner of the entity               |
-| waterAt       | `Date`   | Timestamp of when the plant needs to be watered                              |
-| treflePlantId | `Number` | Unique ID used to query Trefle to get biological information about the plant |
-
-## Available Endpoints
+## API Endpoints
 
 All endpoints require user authentication by passing an ID token obtained during user registration and login. Tokens are necessary in order to identify users and permit access to only their own data. All HTTPS requests made to the API must include the following header:
 
@@ -44,105 +33,10 @@ Response body:
 }
 ```
 
-#### `GET /plants`
+The API currently supports two data collections:
 
-Returns JSON payload of all plants belonging to the user issuing the request.
-
-Response body:
-
-```json
-{
-    "status": 200,
-    "data": [
-        {
-            "id": "w9zjO15oTDTdGcJ4g4W2",
-            "data": {
-                "uid": "3OnPPgflNNMJu7pNwmUvVitgZqH2",
-                "waterAt": "2018-03-12T13:37:27+00:00",
-                "treflePlantId": 834556,
-                "name": "My first plant"
-            }
-        }
-    ]
-}
-```
-
-Possible error codes:
-
-- `500`: Server error; could not reach Firebase.
-
-#### `POST /plants`
-
-Adds a new plant to the user's collection.
-
-Request body:
-
-```json
-{
-    "name": "My second plant",
-    "waterAt": "2021-02-4T12:00:00+00:00",
-    "treflePlantId": 834556
-}
-```
-
-Response body:
-
-```json
-{
-    "status": 201,
-    "data": {
-        "id": "KD3NG4W6JeVE3pUmvPFc"
-    }
-}
-```
-
-Possible error codes:
-
-- `400`: Improperly formatted request body (i.e. missing properties or improper types)
-
-- `409`: Plant already exists for user. A user cannot have two plants of the same name.
-
-- `201`: Successfully created a new plant.
-
-- `500`: Server error; could not reach Firebase.
-
-#### `DELETE /plants/{plantId}`
-
-Deletes the plant specified by `plantId` if it exists and belongs to the user issuing the requests.
-
-No response body is return, just a `204 No Content` status code.
-
-Possible error codes:
-
-- `403`: The plant does not belong to the user; users can only delete their own plants.
-
-- `500`: Server error; could not reach Firebase.
-
-#### `PUT /plants/{plantId}`
-
-Updates the plant specified by `plantId` if it exists and belongs to the user issuing the requests.
-
-Request body:
-
-```json
-{
-    "name": "My second favorite plant",
-    "waterAt": "2021-02-4T12:00:00+00:00",
-    "treflePlantId": 834556
-}
-```
-
-## Possible error codes:
-
-- `400`: Improperly formatted request body (i.e. missing properties or improper types)
-
-- `403`: The plant does not belong to the user; users can only update their own plants.
-
-- `404`: The plant does not exist. 
-
-- `200`: Successfully updated the plant.
-
-- `500`: Server error; could not reach Firebase.
+- [Plants](./docs/plants.md)
+- [Rooms](./docs/rooms.md)
 
 ## Usage
 

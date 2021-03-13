@@ -99,7 +99,7 @@ app.get("/users/me", async (req: any, res) => {
 // makes sure that each property is present in the request body
 const validatePlantRequestBody = (req: any) => {
   if (req.body["name"] == undefined || req.body["waterAt"] == undefined || 
-      req.body["treflePlantId"] == undefined) {
+      req.body["roomId"] == undefined || req.body["treflePlantId"] == undefined) {
     return false;
   }
   return true;
@@ -125,6 +125,7 @@ app.post("/plants", async (req: any, res) => {
     uid: req.user.uid,  // new plant belongs to user making the request
     name: req.body["name"],
     waterAt: req.body["waterAt"],
+    roomId: req.body["roomId"],
     treflePlantId: req.body["treflePlantId"]
   }
 
@@ -264,6 +265,7 @@ app.put("/plants/:plantId", async (req: any, res) => {
     uid: req.user.uid,  // new plant belongs to user making the request
     name: req.body["name"],
     waterAt: req.body["waterAt"],
+    roomId: req.body["roomId"],
     treflePlantId: req.body["treflePlantId"]
   }
 
@@ -329,7 +331,7 @@ app.post("/rooms", async (req: any, res) => {
   const newRoom: Room = {
     uid: req.user.uid,  // new room belongs to user making the request
     name: req.body["name"],
-    updatedAt: new Date().toLocaleString()
+    updatedAt: new Date().toISOString()
   }
 
   try {
@@ -467,7 +469,7 @@ app.put("/rooms/:roomId", async (req: any, res) => {
   const roomReq: Room = {
     uid: req.user.uid,  // new plant belongs to user making the request
     name: req.body["name"],
-    updatedAt: new Date().toLocaleString()
+    updatedAt: new Date().toISOString()
   }
 
   try {
