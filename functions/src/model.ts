@@ -8,7 +8,8 @@ interface Plant {
   name: String,          // custom, user-defined name for the plant
   waterAt: Date,         // time of day to water the plant
   roomId: String,        // ID of the room the plant belongs to
-  treflePlantId: Number  // ID for plant data in Trefle API
+  treflePlantId: Number  // ID for plant data in Trefle API,
+  updatedAt: String      // timestamp for when plant was most recently updated
 }
 
 // Rooms collection model
