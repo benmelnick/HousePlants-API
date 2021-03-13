@@ -358,7 +358,43 @@ app.post("/rooms", async (req: any, res) => {
     });
   } catch (error) {
     // server error trying to write to Firestore
-    logger.error("Unable to create new plant: ", error);
+    logger.error("Unable to create new room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
+// fetch the requesting user's rooms
+app.get("/rooms", async (req: any, res) => {
+  const uid = req.user.uid;
+  logger.log("Fetching rooms for user ", uid);
+  try {
+    // query plant collections by uid
+    const roomsQuerySnapshot = await db.collection(roomCollection)
+      .where("uid", "==", uid).get();
+    
+    const rooms: any[] = [];
+    let numRooms = 0;
+    roomsQuerySnapshot.forEach(
+      (doc) => {
+        numRooms++;
+        rooms.push({
+          id: doc.id,
+          data: doc.data()
+        });
+      }
+    );
+
+    logger.log("Successfully fetched " + numRooms + " rooms for user ", uid);
+    res.status(200).json({
+      status: 200,
+      data: rooms
+    });
+  } catch (error) {
+    logger.error("Unable to fetch rooms for user ", uid);
     res.status(500).json({
       status: 500,
       data: null,
