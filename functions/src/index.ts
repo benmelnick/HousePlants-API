@@ -403,6 +403,50 @@ app.get("/rooms", async (req: any, res) => {
   }
 });
 
+// deletes a specific room given its ID
+app.delete("/rooms/:roomId", async (req: any, res) => {
+  const uid = req.user.uid;
+  const roomId = req.params.roomId;
+  logger.log("Received request to delete room ", roomId);
+
+  try {
+    // check to see if requesting user owns the plant 
+    const room = await db.collection(roomCollection).doc(roomId).get();
+    if (!room.exists) {
+      logger.log("Room " + roomId + " no longer exists");
+      res.status(204).json({
+        status: 204,
+        data: null
+      });
+    } else {
+      if (room.get("uid") != uid) {
+        // this plant does not belong to user who tried to delete it
+        logger.error("User " + uid + " does not have delete permission for room ", roomId);
+        res.status(403).json({
+          status: 403,
+          data: null,
+          message: "Forbidden"
+        });
+      } else {
+        // perform the deletion
+        await db.collection(roomCollection).doc(roomId).delete();
+        logger.log("Successfully deleted room ", roomId);
+        res.status(204).json({
+          status: 204,
+          data: null
+        });
+      }
+    }
+  } catch (error) {
+    logger.error("Unable to delete room: ", error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    });
+  }
+});
+
 // creation function for API, assign express server to handle HTTPS requests
 // makes CRUD API in app available at:
 //  'https://<region>-<project-name>.cloudfunctions.net/webApi
