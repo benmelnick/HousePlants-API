@@ -126,7 +126,8 @@ app.post("/plants", async (req: any, res) => {
     name: req.body["name"],
     waterAt: req.body["waterAt"],
     roomId: req.body["roomId"],
-    treflePlantId: req.body["treflePlantId"]
+    treflePlantId: req.body["treflePlantId"],
+    updatedAt: new Date().toISOString()
   }
 
   try {
@@ -266,7 +267,8 @@ app.put("/plants/:plantId", async (req: any, res) => {
     name: req.body["name"],
     waterAt: req.body["waterAt"],
     roomId: req.body["roomId"],
-    treflePlantId: req.body["treflePlantId"]
+    treflePlantId: req.body["treflePlantId"],
+    updatedAt: new Date().toISOString()
   }
 
   try {
