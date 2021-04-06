@@ -152,23 +152,6 @@ router.put("/:roomId", async (req: any, res) => {
   const roomId = req.params.roomId;
   utils.logger.log("Received request to update room ", roomId);
 
-  // parse request body
-  if (req.body["name"] == undefined) {
-    utils.logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
-    res.status(400).json({
-      status: 400,
-      data: null,
-      message: "Unable to parse request body, one or properties improperly formatted: " + req.body
-    });
-    return;
-  }
-
-  const roomReq: Room = {
-    uid: req.user.uid,  // new plant belongs to user making the request
-    name: req.body["name"],
-    updatedAt: new Date().toISOString()
-  }
-
   try {
     // check to see if requesting user owns the plant 
     const room = await utils.db.collection(utils.roomCollection).doc(roomId).get();
@@ -191,8 +174,15 @@ router.put("/:roomId", async (req: any, res) => {
           message: "Forbidden"
         });
       } else {
-        // perform the update
-        await utils.db.collection(utils.roomCollection).doc(roomId).set(roomReq, {merge: true});
+        // perform the update if a new value was provided
+        if (req.body["name"] != undefined) {
+          const roomDoc = utils.db.collection(utils.roomCollection).doc(roomId);
+          roomDoc.update({
+            name: req.body["name"],
+            updatedAt: new Date().toISOString()
+          });
+        }
+
         utils.logger.log("Successfully updated room ", roomId);
         res.status(200).json({
           status: 200,

@@ -171,31 +171,39 @@ router.delete("/:plantId", async (req: any, res) => {
   }
 });
 
+// looks at each request body field that could be provided in a PUT /plants/plantId request
+// if the field is present in the request body, adds it to the passed in object 'updates' to be used in a 
+//   firestore update() operation
+const collectPutValues = (req: any, updates: any) => {
+  let newValue = false;
+  if (req.body["name"] != undefined) {
+    updates.name = req.body["name"];
+    newValue = true;
+  }
+  if (req.body["waterAt"] != undefined) {
+    updates.waterAt = req.body["waterAt"];
+    newValue = true;
+  }
+  if (req.body["roomId"] != undefined) {
+    updates.roomId = req.body["roomId"];
+    newValue = true;
+  } 
+  if (req.body["treflePlantId"] != undefined) {
+    updates.treflePlantId = req.body["treflePlantId"];
+    newValue = true;
+  }
+
+  // update the "updatedAt" timestamp if any other value has been updated
+  if (newValue) {
+    updates.updatedAt = new Date().toISOString();
+  }
+}
+
 // updates information for a specific plant
 router.put("/:plantId", async (req: any, res) => {
   const uid = req.user.uid;
   const plantId = req.params.plantId;
   utils.logger.log("Received request to update plant ", plantId);
-
-  // parse request body
-  if (!validatePlantRequestBody(req)) {
-    utils.logger.error("Unable to parse request body, one or properties improperly formatted: ", req.body);
-    res.status(400).json({
-      status: 400,
-      data: null,
-      message: "Unable to parse request body, one or properties improperly formatted: " + req.body
-    });
-    return;
-  }
-
-  const plantReq: Plant = {
-    uid: req.user.uid,  // new plant belongs to user making the request
-    name: req.body["name"],
-    waterAt: req.body["waterAt"],
-    roomId: req.body["roomId"],
-    treflePlantId: req.body["treflePlantId"],
-    updatedAt: new Date().toISOString()
-  }
 
   try {
     // check to see if requesting user owns the plant 
@@ -220,8 +228,11 @@ router.put("/:plantId", async (req: any, res) => {
         });
       } else {
         // perform the update
-        // todo: refactor to use update() for only the fields actually provided in the body
-        await utils.db.collection(utils.plantCollection).doc(plantId).set(plantReq, {merge: true});
+        let updates = {};
+        collectPutValues(req, updates);
+
+        const plantDoc = utils.db.collection(utils.plantCollection).doc(plantId);
+        plantDoc.update(updates);
         utils.logger.log("Successfully updated plant ", plantId);
         res.status(200).json({
           status: 200,
