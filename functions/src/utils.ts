@@ -10,6 +10,7 @@ admin.initializeApp(functions.config().firebase);
 export const db = admin.firestore();
 export const plantCollection = "plants";
 export const roomCollection = "rooms";
+export const wateringCollection = "waterings";
 
 export const logger = functions.logger;
 
@@ -51,5 +52,44 @@ export const validateFirebaseIdToken = async (req: any, res: any, next: any) => 
       data: null,
       message: "Unauthorized"
     });
+  }
+};
+
+// function to check if the user is authorized to access the plant it is trying to delete/update
+export const doesUserOwnPlant = async (req: any, res: any, next: any) => {
+  const uid = req.user.uid;
+  const plantId = req.params.plantId;
+
+  // plantId is not a part of the HTTP request endpoint
+  // this request is not trying to edit a plant's specific data (including waterings)
+  if (plantId == undefined) {
+    next();
+    return;
+  }
+
+  try {
+    // lookup the plant given its id
+    const plant = await db.collection(plantCollection).doc(plantId).get();
+    if (!plant.exists) {
+      // doesn't exist, can just return
+      next();
+      return;
+    }
+    if (plant.get("uid") != uid) {
+      logger.error("User " + uid + " does not own plant ", plantId);
+      res.status(403).json({
+        status: 403,
+        data: null,
+        message: "Forbidden"
+      });
+    }
+  } catch (error) {
+    logger.error("Error while trying to verify user " + uid + " ownership of plant " + plantId);
+    logger.error(error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    })
   }
 };

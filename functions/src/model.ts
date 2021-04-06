@@ -18,3 +18,10 @@ interface Room {
   name: String,          // custom, user-defined name for the plant
   updatedAt: String      // timestamp for when the room was most recently updated
 }
+
+// Waterings collection model
+interface Watering {
+  id: String,            // server generated ID for this watering instance
+  wateredAt: String,     // timestamp of when plant was watered
+  health: Number         // subjective rating of the plant's health
+}
