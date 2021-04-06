@@ -5,6 +5,7 @@
 
 import * as express from "express";
 import * as utils from "../utils";
+import * as waterings from "./waterings";
 
 // the middleware to be added to main express app
 // used to create moduler route handlers 
@@ -14,6 +15,7 @@ export const router = express.Router();
 // all requests to endpoints in main server must pass token check
 // thus all HTTPS endpoints can only be accessed by Firebase users
 router.use(utils.validateFirebaseIdToken);
+router.use(waterings.router);
 
 // makes sure that each property is present in the request body
 const validatePlantRequestBody = (req: any) => {
@@ -66,6 +68,11 @@ router.post("/", async (req: any, res) => {
 
     // use await to suspend execution until add() completes
     const newDoc = await utils.db.collection(utils.plantCollection).add(newPlant);
+    // also add a new entry in the waterings collection for this plant
+    await utils.db.collection(utils.wateringCollection).add({
+      plantId: newDoc.id,
+      waterings: []
+    });
     utils.logger.log("Successfully created new plant ", newDoc.id);
     res.status(201).json({
       status: 201,
@@ -213,6 +220,7 @@ router.put("/:plantId", async (req: any, res) => {
         });
       } else {
         // perform the update
+        // todo: refactor to use update() for only the fields actually provided in the body
         await utils.db.collection(utils.plantCollection).doc(plantId).set(plantReq, {merge: true});
         utils.logger.log("Successfully updated plant ", plantId);
         res.status(200).json({
@@ -232,6 +240,3 @@ router.put("/:plantId", async (req: any, res) => {
     });
   }
 });
-
-// make the middleware router available to other files
-//export default router;

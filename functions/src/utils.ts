@@ -10,6 +10,7 @@ admin.initializeApp(functions.config().firebase);
 export const db = admin.firestore();
 export const plantCollection = "plants";
 export const roomCollection = "rooms";
+export const wateringCollection = "waterings";
 
 export const logger = functions.logger;
 
@@ -51,5 +52,39 @@ export const validateFirebaseIdToken = async (req: any, res: any, next: any) => 
       data: null,
       message: "Unauthorized"
     });
+  }
+};
+
+export const doesUserOwnPlant = async (req: any, res: any, next: any) => {
+  const uid = req.user.uid;
+  const plantId = req.params.plantId;
+
+  if (plantId == undefined) {
+    next();
+    return;
+  }
+
+  try {
+    const plant = await db.collection(plantCollection).doc(plantId).get();
+    if (!plant.exists) {
+      next();
+      return;
+    }
+    if (plant.get("uid") != uid) {
+      logger.error("User " + uid + " does not own plant ", plantId);
+      res.status(403).json({
+        status: 403,
+        data: null,
+        message: "Forbidden"
+      });
+    }
+  } catch (error) {
+    logger.error("Error while trying to verify user " + uid + " ownership of plant " + plantId);
+    logger.error(error);
+    res.status(500).json({
+      status: 500,
+      data: null,
+      message: error
+    })
   }
 };
