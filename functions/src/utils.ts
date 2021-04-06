@@ -55,18 +55,23 @@ export const validateFirebaseIdToken = async (req: any, res: any, next: any) => 
   }
 };
 
+// function to check if the user is authorized to access the plant it is trying to delete/update
 export const doesUserOwnPlant = async (req: any, res: any, next: any) => {
   const uid = req.user.uid;
   const plantId = req.params.plantId;
 
+  // plantId is not a part of the HTTP request endpoint
+  // this request is not trying to edit a plant's specific data (including waterings)
   if (plantId == undefined) {
     next();
     return;
   }
 
   try {
+    // lookup the plant given its id
     const plant = await db.collection(plantCollection).doc(plantId).get();
     if (!plant.exists) {
+      // doesn't exist, can just return
       next();
       return;
     }
