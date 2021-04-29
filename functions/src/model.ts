@@ -4,12 +4,14 @@
 
 // Plant collection model
 interface Plant {
-  uid: String,           // uid of plant's owner
-  name: String,          // custom, user-defined name for the plant
-  waterAt: Date,         // time of day to water the plant
-  roomId: String,        // ID of the room the plant belongs to
-  treflePlantId: Number  // ID for plant data in Trefle API,
-  updatedAt: String      // timestamp for when plant was most recently updated
+  uid: String,                // uid of plant's owner
+  name: String,               // custom, user-defined name for the plant
+  waterAt: Date,              // time of day to water the plant
+  roomId: String,             // ID of the room the plant belongs to
+  treflePlantId: Number       // ID for plant data in Trefle API,
+  hasConnectedDevice: Boolean // indicates if a plant has an IoT device connected
+  // TODO: in the future, if a plant were to use multiple devices, we would need to store a list of device IDs
+  updatedAt: String           // timestamp for when plant was most recently updated
 }
 
 // Rooms collection model

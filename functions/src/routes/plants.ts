@@ -20,7 +20,8 @@ router.use(waterings.router);
 // makes sure that each property is present in the request body
 const validatePlantRequestBody = (req: any) => {
   if (req.body["name"] == undefined || req.body["waterAt"] == undefined || 
-      req.body["roomId"] == undefined || req.body["treflePlantId"] == undefined) {
+      req.body["roomId"] == undefined || req.body["treflePlantId"] == undefined ||
+      req.body["hasConnectedDevice"] == undefined) {
     return false;
   }
   return true;
@@ -48,6 +49,7 @@ router.post("/", async (req: any, res) => {
     waterAt: req.body["waterAt"],
     roomId: req.body["roomId"],
     treflePlantId: req.body["treflePlantId"],
+    hasConnectedDevice: req.body["hasConnectedDevice"],
     updatedAt: new Date().toISOString()
   }
 
@@ -190,6 +192,10 @@ const collectPutValues = (req: any, updates: any) => {
   } 
   if (req.body["treflePlantId"] != undefined) {
     updates.treflePlantId = req.body["treflePlantId"];
+    newValue = true;
+  }
+  if (req.body["hasConnectedDevice"] != undefined) {
+    updates.hasConnectedDevice = req.body["hasConnectedDevice"];
     newValue = true;
   }
 
