@@ -17,6 +17,7 @@ interface Plant {
 // Rooms collection model
 interface Room {
   uid: String,           // uid of room's owner
+  roomIconId: Number,    // icon in the frontend
   name: String,          // custom, user-defined name for the plant
   updatedAt: String      // timestamp for when the room was most recently updated
 }
