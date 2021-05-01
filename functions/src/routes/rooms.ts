@@ -15,7 +15,7 @@ router.post("/", async (req: any, res) => {
   utils.logger.log("Adding new room for user ", uid);
 
   // parse request body
-  if (req.body["name"] == undefined) {
+  if (req.body["name"] == undefined || req.body["roomIconId"] == undefined) {
     utils.logger.error("Unable to parse request body, one or properties improperly formatted");
     res.status(400).json({
       status: 400,
@@ -24,10 +24,20 @@ router.post("/", async (req: any, res) => {
     });
     return;
   }
+  if (req.body["roomIconId"] < 0 || req.body["roomIconId"] > 5) {
+    utils.logger.log("Room icon id must be between 0 and 5 (inclusive)");
+    res.status(400).json({
+      status: 400,
+      data: null,
+      message: "Room icon id must be between 0 and 5 (inclusive)"
+    });
+    return;
+  }
 
   const newRoom: Room = {
     uid: req.user.uid,  // new room belongs to user making the request
     name: req.body["name"],
+    roomIconId: req.body["roomIconId"],
     updatedAt: new Date().toISOString()
   }
 
@@ -146,6 +156,23 @@ router.delete("/:roomId", async (req: any, res) => {
   }
 });
 
+const collectPutValues = (req: any, updates: any) => {
+  let newValue = false;
+  if (req.body["name"] != undefined) {
+    updates.name = req.body["name"];
+    newValue = true;
+  }
+  if (req.body["roomIconId"]) {
+    updates.roomIconId = req.body["roomIconId"];
+    newValue = true;
+  }
+
+  // update the "updatedAt" timestamp if any other value has been updated
+  if (newValue) {
+    updates.updatedAt = new Date().toISOString();
+  }
+}
+
 // updates information for a specific plant
 router.put("/:roomId", async (req: any, res) => {
   const uid = req.user.uid;
@@ -175,13 +202,11 @@ router.put("/:roomId", async (req: any, res) => {
         });
       } else {
         // perform the update if a new value was provided
-        if (req.body["name"] != undefined) {
-          const roomDoc = utils.db.collection(utils.roomCollection).doc(roomId);
-          roomDoc.update({
-            name: req.body["name"],
-            updatedAt: new Date().toISOString()
-          });
-        }
+        let updates = {};
+        collectPutValues(req, updates);
+        
+        const roomDoc = utils.db.collection(utils.roomCollection).doc(roomId);
+        roomDoc.update(updates);
 
         utils.logger.log("Successfully updated room ", roomId);
         res.status(200).json({
